@@ -1,4 +1,4 @@
-```python
+
 from PyPDF2 import PdfReader
 import streamlit as st
 import google.generativeai as genai
@@ -239,4 +239,3 @@ elif option == "Study Plan Generator":
                 response.text,
                 file_name="study_plan.txt"
             )
-```
