@@ -11,6 +11,7 @@ import os
 load_dotenv()
 
 api_key = os.getenv("GEMINI_API_KEY")
+genai.configure(api_key=api_key)
 
 if not api_key:
     st.error("Gemini API Key not found in .env file")
