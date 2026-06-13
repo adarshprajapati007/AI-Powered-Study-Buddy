@@ -1,4 +1,4 @@
-
+```python
 from PyPDF2 import PdfReader
 import streamlit as st
 import google.generativeai as genai
@@ -6,23 +6,7 @@ from dotenv import load_dotenv
 import os
 
 # -----------------------------
-# Load Gemini API
-# -----------------------------
-load_dotenv()
-
-api_key = os.getenv("GEMINI_API_KEY")
-genai.configure(api_key=api_key)
-
-if not api_key:
-    st.error("Gemini API Key not found in .env file")
-    st.stop()
-
-genai.configure(api_key=api_key)
-
-model = genai.GenerativeModel("models/gemini-3.5-flash")
-
-# -----------------------------
-# App Title
+# Page Config
 # -----------------------------
 st.set_page_config(
     page_title="AI Study Buddy",
@@ -30,14 +14,39 @@ st.set_page_config(
     layout="wide"
 )
 
+# -----------------------------
+# Load API Key
+# -----------------------------
+load_dotenv()
+
+api_key = os.getenv("GEMINI_API_KEY")
+
+# If local .env key not found, try Streamlit Secrets
+if not api_key:
+    try:
+        api_key = st.secrets["GEMINI_API_KEY"]
+    except:
+        st.error("Gemini API Key not found")
+        st.stop()
+
+genai.configure(api_key=api_key)
+
+# -----------------------------
+# Gemini Model
+# -----------------------------
+model = genai.GenerativeModel("models/gemini-3.5-flash")
+
+# -----------------------------
+# Title
+# -----------------------------
 st.title("📚 AI-Powered Study Buddy")
 
 st.write(
-    "Explain topics, summarize notes, generate quizzes, flashcards and study plans using AI."
+    "Explain topics, summarize PDFs, generate quizzes, flashcards, and study plans using AI."
 )
 
 # -----------------------------
-# Sidebar Menu
+# Sidebar
 # -----------------------------
 option = st.sidebar.selectbox(
     "Choose Feature",
@@ -51,7 +60,7 @@ option = st.sidebar.selectbox(
 )
 
 # ==================================================
-# 1. Explain Topic
+# Explain Topic
 # ==================================================
 if option == "Explain Topic":
 
@@ -63,146 +72,135 @@ if option == "Explain Topic":
 
         if topic:
 
-            try:
+            with st.spinner("Generating Explanation..."):
 
-                with st.spinner("Generating explanation..."):
+                response = model.generate_content(
+                    f"""
+                    Explain {topic} in simple language.
+                    Give examples.
+                    Use bullet points.
+                    """
+                )
 
-                    response = model.generate_content(
-                        f"""
-                        Explain {topic} in simple language.
-                        Give examples.
-                        Include key points.
-                        """
-                    )
+            st.write(response.text)
 
-                st.success("Done!")
-                st.write(response.text)
-
-            except Exception as e:
-                st.error(f"Error: {e}")
-
-        else:
-            st.warning("Please enter a topic.")
+            st.download_button(
+                "Download Result",
+                response.text,
+                file_name="explanation.txt"
+            )
 
 # ==================================================
-# 2. PDF Summarizer
+# PDF Summarizer
 # ==================================================
 elif option == "PDF Summarizer":
 
-    st.header("📄 PDF Notes Summarizer")
+    st.header("📄 PDF Summarizer")
 
     uploaded_file = st.file_uploader(
-        "Upload PDF Notes",
+        "Upload PDF",
         type=["pdf"]
     )
 
     if uploaded_file:
 
-        try:
+        pdf_reader = PdfReader(uploaded_file)
 
-            pdf_reader = PdfReader(uploaded_file)
+        text = ""
 
-            text = ""
+        for page in pdf_reader.pages:
 
-            for page in pdf_reader.pages:
+            page_text = page.extract_text()
 
-                page_text = page.extract_text()
+            if page_text:
+                text += page_text
 
-                if page_text:
-                    text += page_text
+        if st.button("Summarize PDF"):
 
-            st.success("PDF Uploaded Successfully")
+            with st.spinner("Reading PDF..."):
 
-            if st.button("Summarize PDF"):
+                response = model.generate_content(
+                    f"""
+                    Summarize these notes into simple bullet points:
 
-                with st.spinner("Reading PDF..."):
+                    {text[:10000]}
+                    """
+                )
 
-                    response = model.generate_content(
-                        f"""
-                        Summarize these notes into
-                        easy bullet points:
+            st.write(response.text)
 
-                        {text[:10000]}
-                        """
-                    )
-
-                st.write(response.text)
-
-        except Exception as e:
-            st.error(f"Error: {e}")
+            st.download_button(
+                "Download Summary",
+                response.text,
+                file_name="summary.txt"
+            )
 
 # ==================================================
-# 3. Quiz Generator
+# Quiz Generator
 # ==================================================
 elif option == "Quiz Generator":
 
     st.header("❓ Quiz Generator")
 
-    topic = st.text_input("Enter Topic For Quiz")
+    topic = st.text_input("Enter Topic")
 
     if st.button("Generate Quiz"):
 
         if topic:
 
-            try:
+            with st.spinner("Generating Quiz..."):
 
-                with st.spinner("Generating Quiz..."):
+                response = model.generate_content(
+                    f"""
+                    Create 10 MCQs on {topic}.
 
-                    response = model.generate_content(
-                        f"""
-                        Create 10 multiple choice questions
-                        on {topic}.
+                    Provide answers at the end.
+                    """
+                )
 
-                        Provide answers at the end.
-                        """
-                    )
+            st.write(response.text)
 
-                st.write(response.text)
-
-            except Exception as e:
-                st.error(f"Error: {e}")
-
-        else:
-            st.warning("Please enter a topic.")
+            st.download_button(
+                "Download Quiz",
+                response.text,
+                file_name="quiz.txt"
+            )
 
 # ==================================================
-# 4. Flashcard Generator
+# Flashcard Generator
 # ==================================================
 elif option == "Flashcard Generator":
 
     st.header("🧠 Flashcard Generator")
 
-    topic = st.text_input("Enter Topic For Flashcards")
+    topic = st.text_input("Enter Topic")
 
     if st.button("Generate Flashcards"):
 
         if topic:
 
-            try:
+            with st.spinner("Generating Flashcards..."):
 
-                with st.spinner("Generating Flashcards..."):
+                response = model.generate_content(
+                    f"""
+                    Create 10 flashcards on {topic}.
 
-                    response = model.generate_content(
-                        f"""
-                        Create 10 flashcards on {topic}.
+                    Format:
+                    Question:
+                    Answer:
+                    """
+                )
 
-                        Format:
+            st.write(response.text)
 
-                        Question:
-                        Answer:
-                        """
-                    )
-
-                st.write(response.text)
-
-            except Exception as e:
-                st.error(f"Error: {e}")
-
-        else:
-            st.warning("Please enter a topic.")
+            st.download_button(
+                "Download Flashcards",
+                response.text,
+                file_name="flashcards.txt"
+            )
 
 # ==================================================
-# 5. Study Plan Generator
+# Study Plan Generator
 # ==================================================
 elif option == "Study Plan Generator":
 
@@ -221,28 +219,24 @@ elif option == "Study Plan Generator":
 
         if subject:
 
-            try:
+            with st.spinner("Creating Study Plan..."):
 
-                with st.spinner("Creating Study Plan..."):
+                response = model.generate_content(
+                    f"""
+                    Create a detailed {days}-day study plan for {subject}.
 
-                    response = model.generate_content(
-                        f"""
-                        Create a detailed {days}-day study plan
-                        for {subject}.
+                    Include:
+                    - Daily Topics
+                    - Revision Days
+                    - Practice Tests
+                    """
+                )
 
-                        Divide topics day-wise.
+            st.write(response.text)
 
-                        Include:
-                        - Daily goals
-                        - Revision schedule
-                        - Practice tests
-                        """
-                    )
-
-                st.write(response.text)
-
-            except Exception as e:
-                st.error(f"Error: {e}")
-
-        else:
-            st.warning("Please enter a subject.")
+            st.download_button(
+                "Download Study Plan",
+                response.text,
+                file_name="study_plan.txt"
+            )
+```
